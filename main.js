@@ -10,6 +10,7 @@
   let cursorRingPos = { x: 0, y: 0 };
   let isLoaded = false;
   let heroScene, heroCamera, heroRenderer, heroParticles, heroFrame;
+  let objModels = [];
   let cartCount = 0;
 
   function initNoise() {
@@ -64,19 +65,13 @@
     }
     animateCursor();
 
-    function refreshHoverTargets() {
-      document.querySelectorAll('.magnetic, .nav-link, .filter-btn, .btn-add-cart, .featured-card, .work-card').forEach(el => {
-        el.removeEventListener('mouseenter', addHover);
-        el.removeEventListener('mouseleave', removeHover);
-        el.addEventListener('mouseenter', addHover);
-        el.addEventListener('mouseleave', removeHover);
-      });
-    }
-
     function addHover() { document.body.classList.add('cursor-hover'); }
     function removeHover() { document.body.classList.remove('cursor-hover'); }
 
-    refreshHoverTargets();
+    document.querySelectorAll('.magnetic, .nav-link, .filter-btn, .btn-add-cart, .featured-card, .work-card').forEach(el => {
+      el.addEventListener('mouseenter', addHover);
+      el.addEventListener('mouseleave', removeHover);
+    });
   }
 
   function initPreloader() {
@@ -118,16 +113,31 @@
     const W = window.innerWidth;
     const H = window.innerHeight;
 
-    heroRenderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true });
+    heroRenderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     heroRenderer.setSize(W, H);
     heroRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     heroRenderer.setClearColor(0x000000, 0);
 
     heroScene = new THREE.Scene();
-    heroCamera = new THREE.PerspectiveCamera(60, W / H, 0.1, 1000);
+    heroCamera = new THREE.PerspectiveCamera(60, W / H, 0.1, 2000);
     heroCamera.position.set(0, 0, 80);
 
-    const count = 10000;
+    const ambientLight = new THREE.AmbientLight(0x333333, 0.5);
+    heroScene.add(ambientLight);
+
+    const dirLight = new THREE.DirectionalLight(0xc0c0c0, 1.2);
+    dirLight.position.set(5, 10, 7);
+    heroScene.add(dirLight);
+
+    const rimLight = new THREE.DirectionalLight(0x6a7480, 0.6);
+    rimLight.position.set(-5, -3, -5);
+    heroScene.add(rimLight);
+
+    const pointLight = new THREE.PointLight(0xd8dce0, 0.8, 200);
+    pointLight.position.set(0, 0, 30);
+    heroScene.add(pointLight);
+
+    const count = 8000;
     const positions = new Float32Array(count * 3);
     const colors = new Float32Array(count * 3);
     const sizes = new Float32Array(count);
@@ -156,26 +166,28 @@
         positions[i3 + 2] = (Math.random() - 0.5) * 160;
       }
 
-      const hue = Math.random();
-      if (hue < 0.4) {
-        colors[i3] = 0.83 + Math.random() * 0.1;
-        colors[i3 + 1] = 0.66 + Math.random() * 0.15;
-        colors[i3 + 2] = 0.32 + Math.random() * 0.1;
-      } else if (hue < 0.65) {
-        colors[i3] = 0.72 + Math.random() * 0.15;
-        colors[i3 + 1] = 0.43 + Math.random() * 0.15;
-        colors[i3 + 2] = 0.47 + Math.random() * 0.1;
-      } else if (hue < 0.85) {
-        colors[i3] = 0.95 + Math.random() * 0.05;
-        colors[i3 + 1] = 0.88 + Math.random() * 0.1;
-        colors[i3 + 2] = 0.75 + Math.random() * 0.15;
+      const tone = Math.random();
+      if (tone < 0.35) {
+        const v = 0.7 + Math.random() * 0.3;
+        colors[i3] = v;
+        colors[i3 + 1] = v;
+        colors[i3 + 2] = v;
+      } else if (tone < 0.6) {
+        colors[i3] = 0.65 + Math.random() * 0.15;
+        colors[i3 + 1] = 0.68 + Math.random() * 0.15;
+        colors[i3 + 2] = 0.72 + Math.random() * 0.15;
+      } else if (tone < 0.8) {
+        const v = 0.4 + Math.random() * 0.25;
+        colors[i3] = v;
+        colors[i3 + 1] = v;
+        colors[i3 + 2] = v + 0.05;
       } else {
-        colors[i3] = 0.6 + Math.random() * 0.3;
-        colors[i3 + 1] = 0.5 + Math.random() * 0.3;
-        colors[i3 + 2] = 0.4 + Math.random() * 0.3;
+        colors[i3] = 0.85 + Math.random() * 0.15;
+        colors[i3 + 1] = 0.88 + Math.random() * 0.12;
+        colors[i3 + 2] = 0.92 + Math.random() * 0.08;
       }
 
-      sizes[i] = Math.random() * 2.5 + 0.3;
+      sizes[i] = Math.random() * 2.2 + 0.3;
     }
 
     const geo = new THREE.BufferGeometry();
@@ -214,7 +226,7 @@
           float dist = length(uv);
           if (dist > 0.5) discard;
           float alpha = 1.0 - smoothstep(0.15, 0.5, dist);
-          gl_FragColor = vec4(vColor, alpha * 0.8);
+          gl_FragColor = vec4(vColor, alpha * 0.75);
         }
       `,
       transparent: true,
@@ -247,10 +259,10 @@
         uniform float uTime;
         void main() {
           float fresnel = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.5);
-          vec3 gold = vec3(0.83, 0.66, 0.33);
-          vec3 rose = vec3(0.72, 0.44, 0.47);
-          vec3 col = mix(gold, rose, sin(uTime * 0.4) * 0.5 + 0.5);
-          gl_FragColor = vec4(col * fresnel * 1.2, fresnel * 0.4);
+          vec3 silver = vec3(0.75, 0.75, 0.78);
+          vec3 steel = vec3(0.42, 0.46, 0.50);
+          vec3 col = mix(steel, silver, sin(uTime * 0.4) * 0.5 + 0.5);
+          gl_FragColor = vec4(col * fresnel * 1.3, fresnel * 0.35);
         }
       `,
       transparent: true,
@@ -260,6 +272,8 @@
     });
     const glowSphere = new THREE.Mesh(glowGeo, glowMat);
     heroScene.add(glowSphere);
+
+    loadOBJModels();
 
     window.addEventListener('mousemove', (e) => {
       mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
@@ -291,6 +305,14 @@
       glowSphere.rotation.y = clock * 0.25;
       glowSphere.rotation.x = clock * 0.15;
 
+      objModels.forEach((model, idx) => {
+        if (model) {
+          model.rotation.y = clock * (0.08 + idx * 0.02);
+          model.rotation.x = Math.sin(clock * 0.3 + idx) * 0.1;
+          model.position.y = Math.sin(clock * 0.5 + idx * 1.5) * 1.5;
+        }
+      });
+
       heroCamera.position.x = lerp(heroCamera.position.x, mouse.x * 6, 0.025);
       heroCamera.position.y = lerp(heroCamera.position.y, mouse.y * 4, 0.025);
       heroCamera.lookAt(0, 0, 0);
@@ -298,6 +320,65 @@
       heroRenderer.render(heroScene, heroCamera);
     }
     heroAnimate();
+  }
+
+  function loadOBJModels() {
+    if (typeof THREE.OBJLoader === 'undefined') return;
+
+    const loader = new THREE.OBJLoader();
+
+    const metalMaterial = new THREE.MeshStandardMaterial({
+      color: 0x808080,
+      metalness: 0.95,
+      roughness: 0.15,
+      envMapIntensity: 1.0,
+    });
+
+    const chromeMaterial = new THREE.MeshStandardMaterial({
+      color: 0xa8b0b8,
+      metalness: 0.98,
+      roughness: 0.08,
+      envMapIntensity: 1.2,
+    });
+
+    const darkMaterial = new THREE.MeshStandardMaterial({
+      color: 0x2a2a2a,
+      metalness: 0.9,
+      roughness: 0.3,
+    });
+
+    const modelConfigs = [
+      { file: 'Podium.obj', scale: 0.08, pos: [0, -18, -15], mat: metalMaterial },
+      { file: 'Spiral.obj', scale: 0.06, pos: [30, 5, -25], mat: chromeMaterial },
+      { file: 'rock.obj', scale: 0.12, pos: [-28, -8, -20], mat: darkMaterial },
+    ];
+
+    modelConfigs.forEach((config, idx) => {
+      loader.load(
+        config.file,
+        (obj) => {
+          obj.traverse((child) => {
+            if (child.isMesh) {
+              child.material = config.mat;
+            }
+          });
+
+          const box = new THREE.Box3().setFromObject(obj);
+          const center = box.getCenter(new THREE.Vector3());
+          obj.position.sub(center);
+
+          obj.scale.set(config.scale, config.scale, config.scale);
+          obj.position.set(config.pos[0], config.pos[1], config.pos[2]);
+
+          heroScene.add(obj);
+          objModels[idx] = obj;
+        },
+        undefined,
+        (err) => {
+          console.log('OBJ load skipped:', config.file);
+        }
+      );
+    });
   }
 
   function initAboutCanvas() {
@@ -335,17 +416,17 @@
         }
         const grad = ctx.createLinearGradient(0, 0, w, 0);
         if (s === 0) {
-          grad.addColorStop(0, 'rgba(212,168,83,0.05)');
-          grad.addColorStop(0.5, 'rgba(212,168,83,0.5)');
-          grad.addColorStop(1, 'rgba(183,110,121,0.05)');
+          grad.addColorStop(0, 'rgba(192,192,192,0.03)');
+          grad.addColorStop(0.5, 'rgba(192,192,192,0.4)');
+          grad.addColorStop(1, 'rgba(106,116,128,0.03)');
         } else if (s === 1) {
-          grad.addColorStop(0, 'rgba(183,110,121,0.05)');
-          grad.addColorStop(0.5, 'rgba(183,110,121,0.4)');
-          grad.addColorStop(1, 'rgba(212,168,83,0.05)');
+          grad.addColorStop(0, 'rgba(106,116,128,0.03)');
+          grad.addColorStop(0.5, 'rgba(168,176,184,0.35)');
+          grad.addColorStop(1, 'rgba(192,192,192,0.03)');
         } else {
-          grad.addColorStop(0, 'rgba(232,201,122,0.03)');
-          grad.addColorStop(0.5, 'rgba(232,201,122,0.3)');
-          grad.addColorStop(1, 'rgba(232,201,122,0.03)');
+          grad.addColorStop(0, 'rgba(216,220,224,0.02)');
+          grad.addColorStop(0.5, 'rgba(216,220,224,0.25)');
+          grad.addColorStop(1, 'rgba(216,220,224,0.02)');
         }
         ctx.strokeStyle = grad;
         ctx.lineWidth = 1.2;
@@ -357,11 +438,11 @@
           const py = h / 2 + wave * (h * 0.22);
           ctx.beginPath();
           ctx.arc(px, py, 1.5, 0, Math.PI * 2);
-          const alpha = (Math.sin(t + i * 0.3) * 0.5 + 0.5) * 0.7 + 0.1;
+          const alpha = (Math.sin(t + i * 0.3) * 0.5 + 0.5) * 0.6 + 0.1;
           const colorsArr = [
-            `rgba(212,168,83,${alpha})`,
-            `rgba(183,110,121,${alpha})`,
-            `rgba(232,201,122,${alpha})`
+            `rgba(192,192,192,${alpha})`,
+            `rgba(168,176,184,${alpha})`,
+            `rgba(216,220,224,${alpha})`
           ];
           ctx.fillStyle = colorsArr[s];
           ctx.fill();
@@ -566,9 +647,9 @@
         if (cartCountEl) cartCountEl.textContent = cartCount;
 
         btn.textContent = '✓ ADDED';
-        btn.style.color = 'var(--gold)';
-        btn.style.borderColor = 'var(--gold)';
-        btn.style.background = 'rgba(212,168,83,0.08)';
+        btn.style.color = 'var(--white)';
+        btn.style.borderColor = 'var(--silver)';
+        btn.style.background = 'rgba(192,192,192,0.08)';
 
         setTimeout(() => {
           btn.textContent = btn.dataset.product === 'Bespoke Heritage Set' ? 'INQUIRE NOW' : 'ADD TO BAG';
@@ -584,7 +665,7 @@
           left: ${e.clientX}px;
           width: 6px;
           height: 6px;
-          background: var(--gold);
+          background: var(--silver);
           border-radius: 50%;
           pointer-events: none;
           z-index: 10001;
@@ -603,9 +684,8 @@
 
   function initParallax() {
     const sections = $$('.section-header, .about-left, .featured-grid');
-    
+
     window.addEventListener('scroll', () => {
-      const scrollY = window.scrollY;
       sections.forEach(section => {
         const rect = section.getBoundingClientRect();
         const isVisible = rect.top < window.innerHeight && rect.bottom > 0;

@@ -1,0 +1,17 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local environment
+.env
+.env.local
+
+# Logs
+*.log
+
+# Build output (if a bundler is ever added)
+dist/
+build/
+node_modules/
